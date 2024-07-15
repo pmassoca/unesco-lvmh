@@ -1,0 +1,694 @@
+---
+title: "Yearly forest loss in Amazonian biosphere reserves"
+project: "UNESCO-LVMH project"
+author: "Paulo Massoca"
+date: "28/May/2024" 
+output: html_notebook
+---
+
+#Library
+```{r, include=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(viridis)
+library(radiant.data)
+```
+
+#Basic info BRs
+##Areas for the relative calculation of forest loss
+Areas calculated both in QGIS and GEE
+```{r, include=2}
+df.basic <- read_csv("/Users/paulomassoca/Library/CloudStorage/OneDrive-SharedLibraries-UNESCO/UNESCO - Proyecto Amazonia - General/14_Geodatabase/tabular-data/GeoDatabase_Metadata_v.Apr2024.csv") %>%
+  #"shape.area_m2" corresponde a área dos polígonos calculadas usando sistema de coordenadas planas individualmente para cada reserva, enquanto "gee.area_sqm" corresponde a área calculada usando algoritmo do Google Earth Engine para um assent com todas as reservas juntas.
+  select(ID, BiosRes, boundary, country, yr.designation, gee.area_sqm)
+head(df.basic)
+```
+
+#Forest Loss
+##Yearly Loss within the Biosphere Reserves
+```{r, include=2}
+yrForestLossBRs <- read_csv("YrForestLoss_filtered2023.csv") %>%
+  select(BiosRes:constant_9) %>%
+  rename('2001' = constant,
+         '2002' = constant_1,
+         '2003' = constant_2,
+         '2004' = constant_3,
+         '2005' = constant_4,
+         '2006' = constant_5,
+         '2007' = constant_6,
+         '2008' = constant_7,
+         '2009' = constant_8,
+         '2010' = constant_9,
+         '2011' = constant_10,
+         '2012' = constant_11,
+         '2013' = constant_12,
+         '2014' = constant_13,
+         '2015' = constant_14,
+         '2016' = constant_15,
+         '2017' = constant_16,
+         '2018' = constant_17,
+         '2019' = constant_18,
+         '2020' = constant_19,
+         '2021' = constant_20,
+         '2022' = constant_21,
+         '2023' = constant_22) %>%
+  gather(year, forestloss_m2, 4:26) %>%
+  select(-area_m2) %>%
+  mutate(boundary = if_else(boundary == "transition zone", "transition area", boundary)) %>%
+  left_join(df.basic) %>%
+  mutate(BiosRes = if_else(BiosRes == "Podocarpus BR", "Podocarpus - El Condor BR", BiosRes))
+yrForestLossBRs$BiosRes <- factor(yrForestLossBRs$BiosRes, levels = c("Beni BR", "Central Amazon BR", "Pilón Lajas BR", "Podocarpus - El Condor BR", "BIOAY BR", "Sumaco BR", "Manu BR", "Yasuní BR"))
+
+yrForestLossBRs$boundary <- factor(yrForestLossBRs$boundary, levels = c("core area", "buffer zone", "transition area", "total", "10km buffer"))
+
+head(yrForestLossBRs, 10)
+```
+#calculos
+```{r}
+test <- yrForestLossIN %>%
+  filter(year >= 2019) %>%
+  #group_by(BiosRes) %>%
+  summarise(areatotsqkm = sum(forestloss_m2/1000000))
+
+test <- yrForestLossAmzBasin %>%
+  filter(year >= 2019) %>%
+  #group_by(BiosRes) %>%
+  summarise(areatotsqkm = sum(forestloss_m2/1000000))
+
+
+```
+
+
+##Yearly Loss in the countries within the Amazon basin borders
+```{r}
+yrForestLossAmzCountries <- read_csv("YrForestLoss_filtered2022_AmzCountries.csv") %>%
+  select(NAME, constant:constant_9) %>%
+  rename('2001' = constant,
+         '2002' = constant_1,
+         '2003' = constant_2,
+         '2004' = constant_3,
+         '2005' = constant_4,
+         '2006' = constant_5,
+         '2007' = constant_6,
+         '2008' = constant_7,
+         '2009' = constant_8,
+         '2010' = constant_9,
+         '2011' = constant_10,
+         '2012' = constant_11,
+         '2013' = constant_12,
+         '2014' = constant_13,
+         '2015' = constant_14,
+         '2016' = constant_15,
+         '2017' = constant_16,
+         '2018' = constant_17,
+         '2019' = constant_18,
+         '2020' = constant_19,
+         '2021' = constant_20,
+         '2022' = constant_21) %>%
+  gather(year, forestloss_m2, 2:23) %>%
+  rename(country = NAME) %>%
+  mutate(year = as.factor(year),
+         YEAR = as.numeric(year),
+         YEAR = if_else(YEAR <= 12, NA, YEAR),
+         gee.area_sqm = NA,
+         gee.area_sqm = if_else(country == "Ecuador", 133891660972.32411,
+                                if_else(country == "Brazil", 3792643672122.387,
+                                        if_else(country == "Bolivia", 700578042537.246,
+                                                if_else(country == "Peru", 947476951141.1097, gee.area_sqm)))))
+  
+
+head(yrForestLossAmzCountries, 10)
+```
+
+
+##Yearly Loss in the Amazon basin
+```{r, include=2}
+yrForestLossAmzBasin <- read_csv("YrForestLoss_filtered2023_Amzbasin.csv") %>%
+  select(NAME, constant:constant_9) %>%
+  rename('2001' = constant,
+         '2002' = constant_1,
+         '2003' = constant_2,
+         '2004' = constant_3,
+         '2005' = constant_4,
+         '2006' = constant_5,
+         '2007' = constant_6,
+         '2008' = constant_7,
+         '2009' = constant_8,
+         '2010' = constant_9,
+         '2011' = constant_10,
+         '2012' = constant_11,
+         '2013' = constant_12,
+         '2014' = constant_13,
+         '2015' = constant_14,
+         '2016' = constant_15,
+         '2017' = constant_16,
+         '2018' = constant_17,
+         '2019' = constant_18,
+         '2020' = constant_19,
+         '2021' = constant_20,
+         '2022' = constant_21,
+         '2023' = constant_22) %>%
+  gather(year, forestloss_m2, 2:24) %>%
+  mutate(country = "Amazon basin",
+         gee.area_sqm = 6007428931333.8)
+  head(yrForestLossAmzBasin, 10)
+```
+
+##Plot forest loss inside BRs
+Plot yearly forest loss inside the Biosphere Reserves
+```{r}
+yrForestLossIN <- filter(yrForestLossBRs, boundary == "total")
+
+#free y scale
+plot1 <- ggplot(yrForestLossIN) +
+  geom_col(aes(y = forestloss_m2/1000000, fill = country, x = year), width = .7) +
+  facet_wrap(vars(BiosRes), ncol = 2, scales = "free_y") +
+  labs(y = "forest loss (sq.km)",
+       x = element_blank(),
+       title = "Yearly Forest Cover Loss Inside the Biosphere Reserves",
+       #subtitle = "Inside the Biosphere Reserves",
+       caption = "Hansen Global Forest Change v1.11") +
+  scale_fill_viridis_d() +
+  theme(title = element_text(face = "bold"),
+        plot.subtitle = element_text(face = "plain"),
+        legend.position = "top",
+        legend.key.size = unit(.5, "cm"),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 10),
+        axis.text.x.bottom = element_text(angle = 90, hjust = 1, vjust = .5),
+        axis.ticks.x.bottom = element_blank(),
+        strip.text.x = element_text(size = 10, face = "bold", hjust = 0),
+        strip.background = element_blank(),
+        panel.background = element_blank()); plot1
+
+#y scale not free
+plot2 <- ggplot(yrForestLossIN) +
+  geom_col(aes(y = forestloss_m2/1000000, fill = country, x = year), width = .7) +
+  facet_wrap(vars(BiosRes), ncol = 2) +
+  labs(y = "forest loss (sq.km)",
+       x = element_blank(),
+       title = "Yearly Forest Cover Loss Inside the Biosphere Reserves",
+       #subtitle = "Inside the Biosphere Reserves",
+       caption = "Hansen Global Forest Change v1.10") +
+  scale_fill_viridis_d() +
+  theme(title = element_text(face = "bold"),
+        plot.subtitle = element_text(face = "plain"),
+        legend.position = "top",
+        legend.key.size = unit(.5, "cm"),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 10),
+        axis.text.x.bottom = element_text(angle = 90, hjust = 1, vjust = .5),
+        axis.ticks.x.bottom = element_blank(),
+        strip.text.x = element_text(size = 10, face = "bold", hjust = 0),
+        strip.background = element_blank(),
+        panel.background = element_blank()); plot2
+
+#y scale not free
+plot3 <- ggplot(yrForestLossIN) +
+  geom_col(aes(y = ((forestloss_m2/gee.area_sqm)*100), fill = country, x = year), width = .7) +
+  facet_wrap(vars(BiosRes), ncol = 2) +
+  labs(y = "relative forest loss (%)",
+       x = element_blank(),
+       title = "Yearly Forest Cover Loss in the Biosphere Reserves",
+       subtitle = "Relative to the area of the Biosphere Reserves",
+       caption = "Hansen Global Forest Change v1.10") +
+  scale_fill_viridis_d() +
+  theme(title = element_text(face = "bold"),
+        plot.subtitle = element_text(face = "plain"),
+        legend.position = "top",
+        legend.key.size = unit(.5, "cm"),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 10),
+        axis.text.x.bottom = element_text(angle = 90, hjust = 1, vjust = .5),
+        axis.ticks.x.bottom = element_blank(),
+        strip.text.x = element_text(size = 10, face = "bold", hjust = 0),
+        strip.background = element_blank(),
+        panel.background = element_blank()); plot3
+
+
+#ggsave("BRs_yr_forestloss_free2022.png", plot1, width = 20, height = 25, units = "cm")
+#ggsave("BRs_yr_forestloss_notfree2022.png", plot2, width = 20, height = 25, units = "cm")
+#ggsave("BRs_yr_forestloss_notfree_relative2022.png", plot3, width = 20, height = 25, units = "cm")
+```
+
+##Plot forest loss inside AmzBasin
+Plot yearly forest loss inside the Amazon Basin
+```{r}
+#free y scale
+plotAmz <- ggplot(yrForestLossAmzBasin) +
+  geom_col(aes(y = forestloss_m2/1000000000, x = year), width = .7) +
+  #geom_smooth(aes(y=forestloss_m2/1000000, x= YEAR), method = "lm", se = F, colour = "red", linetype = 1, linewidth = 2) +
+  labs(y = "forest loss (1,000 sq.km)",
+       x = element_blank(),
+       #title = "Yearly Forest Cover Loss in the Amazon Basin",
+       subtitle = element_blank(),
+       caption = "Hansen Global Forest Change v1.11") +
+  scale_fill_viridis_d() +
+  theme(title = element_text(face = "bold"),
+        plot.subtitle = element_text(face = "plain", size = 4),
+        axis.text.x.bottom = element_text(angle = 90, hjust = 1, vjust = .5, size = 8),
+        axis.text.y.left = element_text(size = 8),
+        axis.title.y.left = element_text(size = 9),
+        axis.ticks.x.bottom = element_blank(),
+        strip.text.x = element_text(size = 4, face = "bold", hjust = 0),
+        strip.background = element_blank(),
+        panel.background = element_blank()); plotAmz
+#ggsave("AmzBasin_yr_forestloss_free2022.png", plotAmz, width = 9, height = 6, units = "cm")
+```
+
+
+##Plot forest loss outside
+Plot yearly forest loss outside the Biosphere Reserves
+```{r}
+yrForestLossOUT <- filter(yrForestLossBRs, boundary == "10km buffer")
+
+#free y scale
+plot4 <- ggplot(yrForestLossOUT) +
+  geom_col(aes(y = forestloss_m2/1000000, fill = country, x = year), width = .7) +
+  facet_wrap(vars(BiosRes), ncol = 2, scales = "free_y") +
+  labs(y = "forest loss (sq.km)",
+       x = element_blank(),
+       title = "Yearly Forest Cover Loss Outside the Biosphere Reserves",
+       subtitle = "10km buffer area",
+       caption = "Hansen Global Forest Change v1.10") +
+  scale_fill_viridis_d() +
+  theme(title = element_text(face = "bold"),
+        plot.subtitle = element_text(face = "plain"),
+        legend.position = "top",
+        legend.key.size = unit(.5, "cm"),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 10),
+        axis.text.x.bottom = element_text(angle = 90, hjust = 1, vjust = .5),
+        axis.ticks.x.bottom = element_blank(),
+        strip.text.x = element_text(size = 10, face = "bold", hjust = 0),
+        strip.background = element_blank(),
+        panel.background = element_blank()); plot4
+
+#y scale not free
+plot5 <- ggplot(yrForestLossOUT) +
+  geom_col(aes(y = forestloss_m2/1000000, fill = country, x = year), width = .7) +
+  facet_wrap(vars(BiosRes), ncol = 2) +
+  labs(y = "forest loss (sq.km)",
+       x = element_blank(),
+       title = "Yearly Forest Cover Loss Outside the Biosphere Reserves",
+       subtitle = "10km buffer area",
+       caption = "Hansen Global Forest Change v1.10") +
+  scale_fill_viridis_d() +
+  theme(title = element_text(face = "bold"),
+        plot.subtitle = element_text(face = "plain"),
+        legend.position = "top",
+        legend.key.size = unit(.5, "cm"),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 10),
+        axis.text.x.bottom = element_text(angle = 90, hjust = 1, vjust = .5),
+        axis.ticks.x.bottom = element_blank(),
+        strip.text.x = element_text(size = 10, face = "bold", hjust = 0),
+        strip.background = element_blank(),
+        panel.background = element_blank())
+
+ggsave("10kBuffer_yr_forestloss_free2022.png", plot4, width = 20, height = 25, units = "cm")
+#ggsave("10kBuffer_yr_forestloss_nofree2022.png", plot5, width = 20, height = 25, units = "cm")
+```
+
+##Plot forest loss zoning
+```{r}
+yrForestLossZones <- yrForestLossBRs %>%
+  filter(boundary != "10km buffer",
+         boundary != "total")
+
+#free y scale
+plot6 <- ggplot(yrForestLossZones) +
+  geom_col(aes(y = forestloss_m2/1000000, fill = boundary, x = year),
+           width = .7,
+           position = "dodge") +
+  facet_wrap(vars(BiosRes), ncol = 2, scales = "free_y",
+             #strip.position = "bottom"
+             ) +
+  labs(y = "forest loss (sq.km)",
+       x = element_blank(),
+       title = "Yearly Forest Loss",
+       subtitle = element_blank(),
+       caption = "Hansen Global Forest Change v1.10") +
+  scale_fill_brewer(palette = "Paired") +
+  #scale_fill_viridis(discrete=TRUE, option="magma") +
+  theme(title = element_text(face = "bold"),
+        plot.subtitle = element_text(face = "plain"),
+        legend.position = "top",
+        legend.key.size = unit(.5, "cm"),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 10),
+        axis.text.x.bottom = element_text(angle = 90, hjust = 1, vjust = .5),
+        axis.ticks.x.bottom = element_blank(),
+        strip.text.x = element_text(size = 10, face = "bold", hjust = 0),
+        strip.background = element_blank(),
+        panel.background = element_blank()); plot6
+
+ggsave("Zoning_yr_forestloss_free2022_dodge.png", plot6, width = 20, height = 25, units = "cm")
+```
+
+##Plot inside v. outside
+Plot deforestation data from inside and outside the biosphere reserves, both in absolute and relative terms
+```{r}
+yrForestLossInOut <- yrForestLossBRs %>%
+  filter(boundary == "total" |
+         boundary == "10km buffer")
+yrForestLossInOut$boundary <- factor(yrForestLossInOut$boundary, levels = c("total", "10km buffer"))
+
+#free y scale
+plot7 <- ggplot(yrForestLossInOut) +
+  geom_col(aes(y = forestloss_m2/1000000, fill = boundary, x = year),
+           width = .7,
+           position = "dodge") +
+  facet_wrap(vars(BiosRes), ncol = 2, scales = "free_y",
+             #strip.position = "bottom"
+             ) +
+  labs(y = "forest loss (sq.km)",
+       x = element_blank(),
+       title = "Yearly Forest Cover Loss",
+       subtitle = element_blank(),
+       caption = "Hansen Global Forest Change v1.10") +
+  scale_fill_brewer(palette = "Paired",
+                    labels = c("inside the reserve","10 km buffers zone")
+                    ) +
+  #scale_fill_viridis(discrete=TRUE, option="magma") +
+  theme(title = element_text(face = "bold"),
+        plot.subtitle = element_text(face = "plain"),
+        legend.position = "top",
+        legend.key.size = unit(.5, "cm"),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 10),
+        axis.text.x.bottom = element_text(angle = 90, hjust = 1, vjust = .5),
+        axis.ticks.x.bottom = element_blank(),
+        strip.text.x = element_text(size = 10, face = "bold", hjust = 0),
+        strip.background = element_blank(),
+        panel.background = element_blank()); plot7
+
+
+#Forest loss relative to the total area of the biosphere reserve and the 10km buffer zone 
+plot8 <- ggplot(yrForestLossInOut) +
+  geom_col(aes(y = (forestloss_m2/gee.area_sqm)*100, fill = boundary, x = year),
+           width = .7,
+           position = "dodge") +
+  facet_wrap(vars(BiosRes), ncol = 2, scales = "free_y",
+             #strip.position = "bottom"
+             ) +
+  labs(y = "relative forest loss",
+       x = element_blank(),
+       title = "Relative Yearly Forest Cover Loss",
+       subtitle = "Relative to the areas of the biosphere reserve and the 10km buffer zone",
+       caption = "Hansen Global Forest Change v1.10") +
+  scale_fill_brewer(palette = "Paired",
+                    labels = c("inside the reserve","10 km buffers zone")
+                    ) +
+  #scale_fill_viridis(discrete=TRUE, option="magma") +
+  theme(title = element_text(face = "bold"),
+        plot.subtitle = element_text(face = "plain"),
+        legend.position = "top",
+        legend.key.size = unit(.5, "cm"),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 10),
+        axis.text.x.bottom = element_text(angle = 90, hjust = 1, vjust = .5),
+        axis.ticks.x.bottom = element_blank(),
+        strip.text.x = element_text(size = 10, face = "bold", hjust = 0),
+        strip.background = element_blank(),
+        panel.background = element_blank()); plot8
+
+
+ggsave("absolute_yr_forestloss_InOut_2022free.png", plot7, width = 20, height = 25, units = "cm")
+ggsave("relative_yr_forestloss_InOut_2022free.png", plot8, width = 20, height = 25, units = "cm")
+```
+
+#Export table
+```{r}
+table <- yrForestLossBRs %>%
+  mutate(forestloss_km2 = forestloss_m2/1000000) %>%
+  select(ID, BiosRes, boundary, country, year, forestloss_km2) %>%
+  pivot_wider(names_from = year, values_from = forestloss_km2, values_fill = 0) %>%
+  format_df(dec = 1, na.rm = F) %>%
+  relocate(ID:country, `2001`,`2002`,`2003`,`2004`,`2005`,`2006`,`2007`,`2008`,`2009`, `2010`,`2011`,`2012`,`2013`,`2014`,`2015`,`2016`,`2017`,`2018`, `2019`,`2020`, `2021`, `2022`,`2023`)
+
+write_csv(table, "outputR.yrforestlossHansen_v1.11.csv")
+
+
+
+table.relative <- yrForestLossBRs %>%
+  mutate(relativeloss = (forestloss_m2/gee.area_sqm)*100) %>%
+  filter(boundary != "total",
+         boundary != "10km buffer") %>%
+  group_by(BiosRes, boundary) %>%
+  summarise(average = mean(relativeloss),
+            sum = sum(relativeloss))
+
+plot.test <- ggplot(yrForestLossZones) +
+  geom_col(aes(y = (forestloss_m2/gee.area_sqm)*100, fill = boundary, x = year),
+           width = .7,
+           position = "dodge") +
+  facet_wrap(vars(BiosRes), ncol = 2, scales = "free_y",
+             #strip.position = "bottom"
+             ) +
+  labs(y = "forest loss (sq.km)",
+       x = element_blank(),
+       title = "Yearly Forest Loss",
+       subtitle = element_blank(),
+       caption = "Hansen Global Forest Change v1.10") +
+  scale_fill_brewer(palette = "Paired") +
+  #scale_fill_viridis(discrete=TRUE, option="magma") +
+  theme(title = element_text(face = "bold"),
+        plot.subtitle = element_text(face = "plain"),
+        legend.position = "top",
+        legend.key.size = unit(.5, "cm"),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 10),
+        axis.text.x.bottom = element_text(angle = 90, hjust = 1, vjust = .5),
+        axis.ticks.x.bottom = element_blank(),
+        strip.text.x = element_text(size = 10, face = "bold", hjust = 0),
+        strip.background = element_blank(),
+        panel.background = element_blank()); plot.test
+```
+
+#Presentation Honduras
+```{r}
+yrlossHon <- yrForestLossIN %>%
+  mutate(BiosRes = if_else(BiosRes == "Beni BR", "Beni",
+                            if_else(BiosRes == "Pilón Lajas BR", "Pilón Lajas",
+                                    if_else(BiosRes == "Central Amazon BR", "Amazônia Central",
+                                            if_else(BiosRes == "Manu BR", "Manu",
+                                                    if_else(BiosRes == "BIOAY BR", "BIOAY",
+                                                            if_else(BiosRes == "Sumaco BR", "Sumaco",
+                                                                    if_else(BiosRes == "Yasuní BR", "Yasuní",
+                                                                            if_else(BiosRes == "Podocarpus - El Condor BR", "Podocarpus-El Cóndor", BiosRes)))))))),
+         YEAR = as.numeric(year),
+         YEAR = if_else(YEAR <= 12, NA, YEAR)) %>%
+  rename(place = BiosRes) %>%
+  select(-boundary, -yr.designation) %>%
+  rbind(yrForestLossAmzBasin)
+
+yrlossHon$place <- factor(yrlossHon$place, levels = c("Beni", "Pilón Lajas", "Manu", "BIOAY", "Amazônia Central", "Podocarpus-El Cóndor", "Sumaco", "Yasuní", "Amazon Basin"))
+
+brs <- yrlossHon %>%
+  filter(place != "Amazon Basin")
+amzbasin <- yrlossHon %>%
+  filter(place == "Amazon Basin")
+
+#free y scale
+plotRM <- ggplot(brs, aes(y = forestloss_m2/1000000, x = year, fill = country)) +
+  geom_col(width = .7,
+           size = 50) +
+  geom_smooth(aes(y=forestloss_m2/1000000, x= YEAR), method = "lm", se = F,
+              colour = "red",
+              linetype = 1,
+              linewidth = 2) +
+  facet_wrap(vars(place), nrow = 2 , scales = "free_y") +
+  labs(y = "pérdida de bosques (km2)",
+       x = element_blank(),
+       caption = "Hansen Global Forest Change v1.10") +
+  scale_fill_viridis_d() +
+  theme(legend.position = "none",
+        plot.caption = element_text(size = 50),
+        axis.title.y = element_text(size = 70),
+        axis.text = element_text(size = 50),
+        axis.text.x.bottom = element_text(size = 40, angle = 90, hjust = 1, vjust = .5),
+        axis.ticks.x.bottom = element_blank(),
+        strip.text.x = element_text(size = 50, face = "bold", hjust = 0),
+        strip.background = element_blank(),
+        panel.background = element_blank()); plotRM
+
+plotAmz <- ggplot(amzbasin) +
+  geom_col(aes(y = forestloss_m2/1000000, x = year), width = .7) +
+  geom_smooth(aes(y=forestloss_m2/1000000, x= YEAR), method = "lm", se = F,
+              colour = "red",
+              linetype = 1,
+              linewidth = 2) +
+  labs(y = "pérdida de bosques (km2)",
+       x = element_blank(),
+       caption = "Hansen Global Forest Change v1.10") +
+  scale_fill_viridis_d() +
+  theme(legend.position = "none",
+        plot.caption = element_text(size = 50),
+        axis.title.y = element_text(size = 70),
+        axis.text = element_text(size = 50),
+        axis.text.x.bottom = element_text(size = 40, angle = 90, hjust = 1, vjust = .5),
+        axis.ticks.x.bottom = element_blank(),
+        strip.text.x = element_text(size = 50, face = "bold", hjust = 0),
+        strip.background = element_blank(),
+        panel.background = element_blank());  plotAmz
+
+
+plot.relat <- ggplot(brs, aes(y = (forestloss_m2/gee.area_sqm)*100, x = year, fill = country)) +
+  geom_col(width = .7,
+           size = 50) +
+  #geom_smooth(aes(y = (forestloss_m2/gee.area_sqm)*100, x= YEAR), method = "lm", se = F,
+   #           colour = "red",
+    #          linetype = 1,
+     #         linewidth = 2) +
+  facet_wrap(vars(place), nrow = 2,
+             #scales = "free_y"
+             ) +
+  labs(y = "relativo al área de reserva (%)",
+       x = element_blank(),
+       caption = "Hansen Global Forest Change v1.10") +
+  scale_fill_viridis_d() +
+  theme(legend.position = "none",
+        plot.caption = element_text(size = 50),
+        axis.title.y = element_text(size = 70),
+        axis.text = element_text(size = 50),
+        axis.text.x.bottom = element_text(size = 40, angle = 90, hjust = 1, vjust = .5),
+        axis.ticks.x.bottom = element_blank(),
+        strip.text.x = element_text(size = 50, face = "bold", hjust = 0),
+        strip.background = element_blank(),
+        panel.background = element_blank()); plot.relat
+
+
+plotCountries <- ggplot(yrForestLossAmzCountries, aes(y = forestloss_m2/1000000, x = year, fill = country)) +
+  geom_col(width = .7,
+           size = 50) +
+  geom_smooth(aes(y=forestloss_m2/1000000, x= YEAR), method = "lm", se = F,
+              colour = "red",
+              linetype = 1,
+              linewidth = 2) +
+  facet_wrap(vars(country), nrow = 2 , scales = "free_y") +
+  labs(y = "pérdida de bosques (km2)",
+       x = element_blank(),
+       caption = "Hansen Global Forest Change v1.10") +
+  scale_fill_viridis_d() +
+  theme(legend.position = "none",
+        plot.caption = element_text(size = 50),
+        axis.title.y = element_text(size = 70),
+        axis.text = element_text(size = 50),
+        axis.text.x.bottom = element_text(size = 40, angle = 90, hjust = 1, vjust = .5),
+        axis.ticks.x.bottom = element_blank(),
+        strip.text.x = element_text(size = 50, face = "bold", hjust = 0),
+        strip.background = element_blank(),
+        panel.background = element_blank()); plotCountries
+
+
+
+ggsave("BRs_yr_forestloss_free2022_Honduras.png", plotRM, width = 140, height = 60, units = "cm", limitsize = F)
+ggsave("AmzBasin_yr_forestloss_free2022_Honduras.png", plotAmz, width = 50, height = 50, units = "cm", limitsize = F)
+ggsave("BRs_yr_relforestloss_Honduras.png", plot.relat, width = 140, height = 60, units = "cm", limitsize = F)
+ggsave("Countries_yr_relforestloss_Honduras.png", plotCountries, width = 80, height = 60, units = "cm", limitsize = F)
+```
+
+
+
+
+
+
+#TO UPDATE
+#Deliverable 2 (2022)
+Script to plot individual graphs of deforestation within each of the biosphere reserves for Deliverable 2 (2022)
+```{r}
+indivbrs <- yrForestLossBRs %>%
+  filter(BiosRes == "Manu BR",
+         boundary == "total")
+
+#free y scale
+graph1 <- ggplot(indivbrs) +
+  geom_col(aes(y = forestloss_m2/1000000, x = year), width = .7, fill = "red") +
+  labs(y = "area (sq.km)",
+       x = element_blank(),
+       title = "Yearly Forest Cover Loss",
+       subtitle = "Inside the Bioshpere Reserve",
+       caption = "Hansen Global Forest Change v1.9") +
+  theme(title = element_text(face = "bold", size = 7),
+        plot.subtitle = element_text(face = "plain", size = 6),
+        axis.title = element_text(size = 7, face = "bold"),
+        axis.text = element_text(size = 5, hjust = 1, vjust = .5),
+        axis.text.x.bottom = element_text(angle = 90),
+        axis.ticks =  element_line(size = 0.5),
+        axis.ticks.x.bottom = element_blank(),
+        strip.text.x = element_text(size = 5, face = "bold", hjust = 0),
+        strip.background = element_blank(),
+        panel.background = element_blank()); graph1
+
+#Forest loss relative to the protection and management zones 
+zoning <- yrForestLossBRs %>%
+  filter(BiosRes == "Manu BR",
+         boundary != "total" ,
+           boundary != "10km buffer")
+
+graph2 <- ggplot(zoning) +
+   geom_col(aes(y = forestloss_m2/1000000, fill = boundary, x = year),
+           width = .7,
+           position = "dodge") +
+  labs(y = element_blank(),
+       #y = "area (sq.km)",
+       x = element_blank(),
+       title = "Yearly Forest Cover Loss",
+       subtitle = "Relative to the protection and management zones",
+       caption = "Hansen Global Forest Change v1.9") +
+  scale_fill_brewer(palette = "Paired",
+                    #labels = c("10km buffer zone", "inside the biosphere reserve")
+                    ) +
+  theme(title = element_text(face = "bold", size = 7),
+        plot.subtitle = element_text(face = "plain", size = 6),
+        axis.title = element_text(size = 7, face = "bold"),
+        #legend.position = "top",
+        legend.position = c(.15,.9),
+        legend.key.size = unit(.3, "cm"),
+        legend.title = element_blank(),
+        legend.text = element_text(size = 6),
+        legend.margin=margin(0,0,0,0),
+        #legend.box.margin=margin(10,10,10,10),
+        axis.text = element_text(size = 5, hjust = 1, vjust = .5),
+        axis.text.x.bottom = element_text(angle = 90),
+        axis.ticks =  element_line(size = 0.5),
+        axis.ticks.x.bottom = element_blank(),
+        strip.text.x = element_text(size = 5, face = "bold", hjust = 0),
+        strip.background = element_blank(),
+        panel.background = element_blank()); graph2
+
+ggsave("Deliv2_yrforestloss2021_manu.png", graph1, width = 8, height = 8, units = "cm")
+ggsave("Deliv2_yrforestloss2021.zoning_manu.png", graph2, width = 8, height = 8, units = "cm")
+```
+
+#Fact Sheets 2022
+Script to plot individual graphs of deforestation within each of the biosphere reserves for the fact sheets prepared in August 2022
+```{r}
+factsheets <- alldata %>%
+  filter(BiosRes == "Podocarpus - El Condor BR",
+         boundary == "total")
+
+#free y scale
+graph1 <- ggplot(factsheets) +
+  geom_col(aes(y = forestloss_m2/1000000, x = year), width = .7, fill = "red") +
+  labs(y = element_blank(),
+       x = element_blank(),
+       #title = "Yearly Forest Cover Loss",
+       #subtitle = "Inside the Bioshpere Reserve",
+       #caption = "Hansen Global Forest Change v1.9"
+       ) +
+  #scale_x_discrete(breaks = c(2001, 2003, 2005, 2007, 2009, 2011, 2013, 2015, 2017, 2019, 2021)) +
+  #scale_y_continuous(breaks = seq(0,30,5)) +
+  theme(
+    text = element_text(size = 8),
+    #axis.text.x.bottom = element_text(size = 6, hjust = 1, vjust = 0, angle = 90),
+    axis.text.x = element_blank(),
+    axis.ticks =  element_line(size = 0.3),
+    axis.ticks.x.bottom = element_blank(),
+    strip.background = element_blank(),
+    panel.background = element_blank()); graph1
+
+
+ggsave("factsheet_BRs_yrforestloss_podocarpus.png", graph1, width = 5, height = 5, units = "cm")
+```
